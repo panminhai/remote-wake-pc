@@ -1,0 +1,12 @@
+# 1. 隱藏含敏感資訊的設定檔
+pc-lan.json
+mqtt-info.env
+main-test.py
+mqtt-test.py
+sns-bot-test.py
+*.env
+
+# 2. 順便忽略的 Python 暫存與快取檔資料夾（避免專案變雜亂）
+__pycache__/
+*.pyc
+.micropico/
