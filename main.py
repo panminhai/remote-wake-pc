@@ -24,8 +24,8 @@ with open('pc-lan.json', 'r') as pc_info:
     mqtt_topic = pc.get('aio_topic') # Topic:MQTT通訊協定中用來標示、分類與路由訊息的字串地址(在這裡是feed位址)
     # print(f"用戶名:{mqtt_name} \n金鑰:{mqtt_password} \n用戶主題:{mqtt_topic}")
 
-# MQTTClient參數(client_id, server, port=0, user=None, password=None, keepalive=0, ssl=False, ssl_params={})
-mqtt = MQTTClient(client_id=mqtt_id, server=mqtt_server, port=mqtt_port, user=mqtt_name, password=mqtt_password)
+# MQTTClient參數(client_id, server, port=0, user=None, password=None, keepalive=0(連線存活時間(秒)), ssl=False, ssl_params={})
+mqtt = MQTTClient(client_id=mqtt_id, server=mqtt_server, port=mqtt_port, user=mqtt_name, password=mqtt_password, keepalive=60) 
 # mqtt_topic = "pan_1331/feeds/remote-pc-command" # Topic:MQTT通訊協定中用來標示、分類與路由訊息的字串地址(在這裡是feed位址)
 
 
@@ -59,6 +59,7 @@ def main():
     wlan = network.WLAN(network.STA_IF)
     mqtt.set_callback(send_to_wol) # 設定接收訊息的callback函數
     mqtt_isconnected = False # 設置mqtt連線狀態(初始:false)
+    start_time = time.time() # 設置時間節點(初始:當下時間)
     while True:
         #------初次連線/異常處理區------#
         # 確認wifi連線
@@ -127,7 +128,23 @@ def main():
                 pass
             print("連線已中斷, 結束程式...")
             break
-
+        # 每隔30秒後傳送一次ping訊號, 避免長時間閒置導致mqtt斷線
+        if time.time() - start_time > 30:
+            try:
+                mqtt.ping() # 發送ping訊號
+                start_time = time.time() # 重置時間節點
+                # print("發送ping心跳包...")
+            except Exception as e:
+                print("傳送ping時發生錯誤, 將重新連接...", e)
+                mqtt_isconnected = False
+                # 注意: 在 except 內部裡面發生的新錯誤，無法被外層的 try 攔截 
+                try:
+                    mqtt.disconnect() # 斷線
+                except:
+                    # 防範其他連線發生錯誤:預防wifi斷線時mqtt也斷線, 造成mqtt.disconnect()報錯
+                    pass
+                time.sleep(5) # 延遲點:避免CPU過度運作,5秒後回到迴圈重來
+                
 #-------程式執行區-------#
 if __name__ == "__main__":
     main()
